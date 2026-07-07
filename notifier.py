@@ -47,43 +47,66 @@ def send_telegram_message(message: str) -> bool:
         return False
 
 
-def send_signal_alert(symbol: str, market_type: str, signal_type: str, price: float, timeframe: str, details: str, grade: str = None) -> bool:
+def send_signal_alert(symbol: str, market_type: str, signal_type: str, price: float, timeframe: str, details: str, grade: str = None, tp_price: float = None, sl_price: float = None, confluence_pct: int = 0) -> bool:
     """
-    Biçimlendirilmiş işlem uyarısı gönderir (Derece detaylı).
+    Biçimlendirilmiş işlem uyarısı gönderir (TP, SL, Confluence Skoru dahil).
     market_type: 'BIST' veya 'Crypto'
     signal_type: 'LONG' (AL) veya 'SHORT' (SAT)
     grade: 'A++', 'A', 'B' (Derece)
     """
-    emoji = "🟢 LONG" if signal_type.upper() == "LONG" else "🔴 SHORT"
+    is_long = signal_type.upper() == "LONG"
+    direction_emoji = "🟢" if is_long else "🔴"
+    direction_text = "📈 LONG (AL)" if is_long else "📉 SHORT (SAT)"
     market_emoji = "🇹🇷" if market_type.upper() == "BIST" else "🪙"
 
     # Derece başlığı
-    grade_decor = ""
-    if grade:
-        if grade == "A++":
-            grade_decor = "🔥 <b>ULTRA GÜÇLÜ SINYAL (A++)</b> 🔥\n"
-        elif grade == "A":
-            grade_decor = "⭐ <b>GÜÇLÜ SINYAL (A)</b>\n"
-        elif grade == "B":
-            grade_decor = "⚡ <b>ORTA ŞİDDETTE SINYAL (B)</b>\n"
+    if grade == "A++":
+        grade_header = "🔥🔥 <b>ULTRA GÜÇLÜ SİNYAL — A++</b> 🔥🔥"
+    elif grade == "A":
+        grade_header = "⭐⭐ <b>GÜÇLÜ SİNYAL — A</b> ⭐⭐"
+    else:
+        grade_header = "⚡ <b>ORTA SİNYAL — B</b>"
+
+    # Confluence (İndikatör Uyumu) çubuğu
+    filled = int(confluence_pct / 10)
+    bar = "🟩" * filled + "⬜" * (10 - filled)
+    confluence_text = f"{bar} <b>%{confluence_pct}</b>"
 
     # Fiyat formatı
-    if market_type.upper() == "BIST":
-        price_str = f"{price:,.2f} TL"
-    else:
-        price_str = f"${price:,.4f}"
+    def fmt(v):
+        if v is None: return "—"
+        return f"{v:,.4f}" if v < 10 else f"{v:,.2f}"
 
-    safe_details = _escape_html(details)
+    price_str = fmt(price)
+    tp_str = fmt(tp_price)
+    sl_str = fmt(sl_price)
+    currency = "TL" if market_type.upper() == "BIST" else "USDT"
+
+    # TP/SL yüzdeleri
+    if tp_price and sl_price:
+        tp_pct = round(abs(tp_price - price) / price * 100, 2)
+        sl_pct = round(abs(sl_price - price) / price * 100, 2)
+        tp_line = f"🎯 <b>Hedef Fiyat (TP):</b> <code>{tp_str} {currency}</code>  <i>(+%{tp_pct})</i>"
+        sl_line = f"🛑 <b>Zarar Durdur (SL):</b> <code>{sl_str} {currency}</code>  <i>(-%{sl_pct})</i>"
+        rr = round(tp_pct / sl_pct, 1) if sl_pct > 0 else 0
+        rr_line = f"⚖️ <b>Risk / Kâr Oranı:</b>  1 : {rr}"
+    else:
+        tp_line = f"🎯 <b>Hedef Fiyat (TP):</b> —"
+        sl_line = f"🛑 <b>Zarar Durdur (SL):</b> —"
+        rr_line = f"⚖️ <b>Risk / Kâr Oranı:</b> —"
 
     message = (
         f"🚨 <b>YENİ İŞLEM SİNYALİ</b> 🚨\n"
-        f"{grade_decor}\n"
-        f"<b>{market_emoji} Varlık:</b> <code>{_escape_html(symbol)}</code> ({_escape_html(market_type)})\n"
-        f"<b>⚡ Yön:</b> {emoji}\n"
-        f"<b>💵 Fiyat:</b> <code>{price_str}</code>\n"
-        f"<b>⏱️ Grafik:</b> <code>{_escape_html(timeframe)}</code>\n\n"
-        f"<b>📊 Kantitatif Analiz Raporu:</b>\n<pre>{safe_details}</pre>\n\n"
-        f"⚠️ <i>Yatırım tavsiyesi değildir. Lütfen kendi analizinizle teyit edin.</i>"
+        f"{grade_header}\n\n"
+        f"{market_emoji} <b>{_escape_html(symbol)}</b>  |  ⏱️ {_escape_html(timeframe)}\n"
+        f"{direction_emoji} <b>Yön:</b>  {direction_text}\n\n"
+        f"💵 <b>Anlık Fiyat:</b>  <code>{price_str} {currency}</code>\n"
+        f"{tp_line}\n"
+        f"{sl_line}\n"
+        f"{rr_line}\n\n"
+        f"📊 <b>İndikatör Uyumu:</b>\n{confluence_text}\n\n"
+        f"<b>📋 Detaylı Analiz:</b>\n<pre>{_escape_html(details)}</pre>\n\n"
+        f"⚠️ <i>Bu bir yatırım tavsiyesi değildir. Kendi analizinizle teyit edin. Risk yönetimi yapın!</i>"
     )
 
     return send_telegram_message(message)

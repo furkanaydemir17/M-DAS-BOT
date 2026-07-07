@@ -426,7 +426,6 @@ def analyze_market_data(df: pd.DataFrame, config_inds: dict, htf_trend: str = No
     grade = None
     reasons_list = []
 
-    # En az bir tetikleyici olmalı
     has_long_trigger = st_buy_trigger or macd_up_cross or rsi_buy_trigger or bb_breakout_up
     has_short_trigger = st_sell_trigger or macd_down_cross or rsi_sell_trigger or bb_breakout_down
 
@@ -439,37 +438,82 @@ def analyze_market_data(df: pd.DataFrame, config_inds: dict, htf_trend: str = No
         final_score = short_score
         reasons_list = short_reasons
 
-    # Derecelendir
     if signal_type:
         if final_score >= 80:
-            grade = "A++"  # ULTRA STRONG
+            grade = "A++"
         elif final_score >= 60:
-            grade = "A"    # STRONG
+            grade = "A"
         else:
-            grade = "B"    # MODERATE
+            grade = "B"
 
-    # Detay Raporu Oluştur (Telegram ve Dashboard için)
-    trend_text = "Boga/Yukari" if is_above_ema200 else "Ayi/Asagi"
-    rsi_text = "Asiri Satim" if rsi < rsi_os else ("Asiri Alim" if rsi > rsi_ob else "Notr")
-    st_text = "YUKARI/LONG" if st_val else "ASAGI/SHORT"
-    sq_text = "Aşırı Sıkışma (Sert Hareket Yakın)" if is_squeezed else "Normal Volatilite"
+    # ---------------------------------------------------------------
+    # ATR (Average True Range) Tabanlı TP ve SL Hesaplama
+    # ---------------------------------------------------------------
+    tr1 = df['High'] - df['Low']
+    tr2 = (df['High'] - df['Close'].shift()).abs()
+    tr3 = (df['Low'] - df['Close'].shift()).abs()
+    tr = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
+    atr = tr.rolling(14).mean().iloc[-1]
+    if pd.isna(atr) or atr <= 0:
+        atr = close * 0.01
+
+    if signal_type == "LONG":
+        tp_price = round(close + (atr * 2.0), 6)
+        sl_price = round(close - (atr * 1.0), 6)
+    elif signal_type == "SHORT":
+        tp_price = round(close - (atr * 2.0), 6)
+        sl_price = round(close + (atr * 1.0), 6)
+    else:
+        tp_price = None
+        sl_price = None
+
+    # Confluence (İndikatör Uyumu) Skoru
+    confluence_pct = min(final_score, 100) if final_score else 0
+
+    # Risk/Ödül oranı
+    if tp_price and sl_price and signal_type:
+        potential_gain = abs(tp_price - close)
+        potential_loss = abs(sl_price - close)
+        rr_ratio = round(potential_gain / potential_loss, 1) if potential_loss > 0 else 0
+        tp_pct = round((potential_gain / close) * 100, 2)
+        sl_pct = round((potential_loss / close) * 100, 2)
+    else:
+        rr_ratio = 0
+        tp_pct = 0
+        sl_pct = 0
+
+    # ---------------------------------------------------------------
+    # Detay Raporu (Telegram ve Dashboard için)
+    # ---------------------------------------------------------------
+    trend_text = "Boğa/Yükseliş" if is_above_ema200 else "Ayı/Düşüş"
+    rsi_text = "Aşırı Satım" if rsi < rsi_os else ("Aşırı Alım" if rsi > rsi_ob else "Nötr")
+    st_text = "YUKARI (LONG)" if st_val else "ASAGI (SHORT)"
+    sq_text = "Sıkışma Var ⚡" if is_squeezed else "Normal"
+
+    price_fmt = f"{close:,.4f}" if close < 10 else f"{close:,.2f}"
+    tp_fmt = f"{tp_price:,.4f}" if tp_price and tp_price < 10 else f"{tp_price:,.2f}" if tp_price else "—"
+    sl_fmt = f"{sl_price:,.4f}" if sl_price and sl_price < 10 else f"{sl_price:,.2f}" if sl_price else "—"
 
     details = (
-        f"Fiyat: {close:,.2f}\n"
-        f"EMA 50: {ema_50:,.2f} | EMA 200: {ema_200:,.2f} ({trend_text})\n"
-        f"RSI: {rsi:.1f} ({rsi_text})\n"
-        f"MACD: {macd_val:.4f} | Hist: {macd_hist:.4f} ({'Guclu' if macd_is_strong else 'Zayif'})\n"
-        f"Volume: {volume:,.0f} | 20-SMA: {vol_sma:,.0f} ({'Patlama' if is_volume_spike else 'Normal'})\n"
-        f"SuperTrend: {st_text}\n"
-        f"Bollinger Bandwidth: {bw:.3f} ({sq_text})\n"
-        f"OBV Durumu: {'Pozitif Akis' if obv > obv_ema else 'Negatif Akis'}\n"
-        f"MTF Trend Durumu: {htf_trend if htf_trend else 'Bilinmiyor (Taranmadi)'}\n"
+        f"💵 Anlık Fiyat: {price_fmt}\n"
+        f"🎯 Hedef Fiyat (TP): {tp_fmt} (+%{tp_pct})\n"
+        f"🛑 Zarar Durdur (SL): {sl_fmt} (-%{sl_pct})\n"
+        f"⚖️ Risk/Ödül Oranı: 1:{rr_ratio}\n"
+        f"📊 İndikatör Uyumu: %{confluence_pct}/100\n"
         f"---\n"
-        f"Sinyal Skoru: {final_score}/100 | Derece: {grade}\n"
-        f"Onay Gerekceleri:\n" + "\n".join(f"- {r}" for r in reasons_list)
+        f"📈 EMA Trendi: {trend_text}\n"
+        f"🔵 RSI: {rsi:.1f} ({rsi_text})\n"
+        f"⚡ SuperTrend: {st_text}\n"
+        f"📉 MACD Gücü: {'Güçlü' if macd_is_strong else 'Zayıf'}\n"
+        f"💧 Volume: {'Patlama 🔥' if is_volume_spike else 'Normal'}\n"
+        f"🔀 OBV: {'Pozitif Akış ▲' if obv > obv_ema else 'Negatif Akış ▼'}\n"
+        f"📏 Bollinger: {sq_text}\n"
+        f"🌐 MTF Trend: {htf_trend if htf_trend else 'Bilinmiyor'}\n"
+        f"---\n"
+        f"✅ Onay Gerekçeleri:\n" + "\n".join(f"• {r.split(' (+')[0]}" for r in reasons_list)
     )
 
-    return signal_type, details, grade
+    return signal_type, details, grade, tp_price, sl_price, confluence_pct
 
 
 # -------------------------------------------------------------------
@@ -516,7 +560,7 @@ def run_scan(timeframe: str = "1h") -> dict:
                     logger.warning(f"HTF ({htf}) trendi alinamadi: {htf_err}. Yalnizca LTF taranacak.")
 
             # 3. Analiz yap
-            signal, details, grade = analyze_market_data(df_ltf, indicators, htf_trend)
+            signal, details, grade, tp_price, sl_price, confluence_pct = analyze_market_data(df_ltf, indicators, htf_trend)
             current_price = float(df_ltf.iloc[-1]['Close'])
             scanned_items.append({
                 "symbol": symbol,
@@ -541,10 +585,13 @@ def run_scan(timeframe: str = "1h") -> dict:
 
                 if should_notify:
                     from notifier import send_signal_alert
-                    send_signal_alert(symbol, "BIST", signal, current_price, timeframe, details, grade)
+                    send_signal_alert(symbol, "BIST", signal, current_price, timeframe, details, grade, tp_price, sl_price, confluence_pct)
                     active_signals[symbol] = {
                         "signal_type": signal,
                         "price": current_price,
+                        "tp_price": tp_price,
+                        "sl_price": sl_price,
+                        "confluence_pct": confluence_pct,
                         "time": timestamp,
                         "details": details,
                         "grade": grade
@@ -579,7 +626,7 @@ def run_scan(timeframe: str = "1h") -> dict:
                     logger.warning(f"HTF ({htf}) trendi alinamadi: {htf_err}. Yalnizca LTF taranacak.")
 
             # 3. Analiz yap
-            signal, details, grade = analyze_market_data(df_ltf, indicators, htf_trend)
+            signal, details, grade, tp_price, sl_price, confluence_pct = analyze_market_data(df_ltf, indicators, htf_trend)
             current_price = float(df_ltf.iloc[-1]['Close'])
             scanned_items.append({
                 "symbol": symbol,
@@ -604,10 +651,13 @@ def run_scan(timeframe: str = "1h") -> dict:
 
                 if should_notify:
                     from notifier import send_signal_alert
-                    send_signal_alert(symbol, "Crypto", signal, current_price, timeframe, details, grade)
+                    send_signal_alert(symbol, "Crypto", signal, current_price, timeframe, details, grade, tp_price, sl_price, confluence_pct)
                     active_signals[symbol] = {
                         "signal_type": signal,
                         "price": current_price,
+                        "tp_price": tp_price,
+                        "sl_price": sl_price,
+                        "confluence_pct": confluence_pct,
                         "time": timestamp,
                         "details": details,
                         "grade": grade
