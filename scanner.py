@@ -133,36 +133,49 @@ def _retry(func, max_retries: int = 3, delay: float = 2.0):
 
 
 def fetch_crypto_data(symbol: str, timeframe: str = "1h") -> pd.DataFrame:
-    """Binance API'den kripto fiyat verisi çeker."""
-    api_symbol = symbol.replace("/", "").upper()
-    valid_intervals = {"1m", "3m", "5m", "15m", "30m", "1h", "2h", "4h", "6h", "8h", "12h", "1d", "3d", "1w"}
-    interval = timeframe if timeframe in valid_intervals else "1h"
+    """
+    yfinance üzerinden Kripto fiyat verisi çeker.
+    Bu yöntem, US IP bloklarını (Binance 451 hatasını) tamamen aşar.
+    Örnek symbol: BTC/USDT -> BTC-USD
+    """
+    symbol_usd = symbol.replace("/", "-").replace("USDT", "USD")
+    needs_resample_4h = (timeframe == "4h")
+    
+    interval_map = {
+        "15m": "15m",
+        "1h": "1h",
+        "4h": "1h",
+        "1d": "1d"
+    }
+    interval = interval_map.get(timeframe, "1h")
+
+    # yfinance period limitleri (1h için 60 gün güvenlidir)
+    period_map = {
+        "15m": "60d",
+        "1h": "60d",
+        "1d": "2y"
+    }
+    period = period_map.get(interval, "60d")
 
     def _fetch():
-        url = "https://api.binance.com/api/v3/klines"
-        params = {
-            "symbol": api_symbol,
-            "interval": interval,
-            "limit": 200
-        }
-        response = requests.get(url, params=params, timeout=15)
-        if response.status_code != 200:
-            raise Exception(f"Binance API {response.status_code}: {response.text}")
-        data = response.json()
-        if not data:
-            raise Exception(f"Binance API bos veri dondurdu: {api_symbol}")
-        df = pd.DataFrame(data, columns=[
-            "Open_time", "Open", "High", "Low", "Close", "Volume",
-            "Close_time", "Quote_asset_volume", "Number_of_trades",
-            "Taker_buy_base_asset_volume", "Taker_buy_quote_asset_volume", "Ignore"
-        ])
-        for col in ["Open", "High", "Low", "Close", "Volume"]:
-            df[col] = pd.to_numeric(df[col])
-        df['Datetime'] = pd.to_datetime(df['Open_time'], unit='ms')
-        df.set_index('Datetime', inplace=True)
+        ticker = yf.Ticker(symbol_usd)
+        df = ticker.history(period=period, interval=interval)
+        if df.empty:
+            raise Exception(f"yfinance (Kripto): {symbol_usd} icin veri alinamadi.")
         return df
 
-    return _retry(_fetch)
+    df = _retry(_fetch)
+
+    if needs_resample_4h and not df.empty:
+        df = df.resample('4h').agg({
+            'Open': 'first',
+            'High': 'max',
+            'Low': 'min',
+            'Close': 'last',
+            'Volume': 'sum'
+        }).dropna()
+
+    return df
 
 
 def fetch_bist_data(symbol: str, timeframe: str = "1h") -> pd.DataFrame:
