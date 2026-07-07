@@ -4,7 +4,7 @@
   "scan_interval_minutes": 10,
   "bist_tickers": [],
   "crypto_tickers": [
-    "BTC/USDT", "ETH/USDT", "SOL/USDT", "AVAX/USDT", "XRP/USDT", "LINK/USDT", "ADA/USDT", "DOT/USDT", "DOGE/USDT", "NEAR/USDT", "SUI/USDT", "PEPE/USDT", "WIF/USDT", "FET/USDT"
+    "BTC/USDT", "ETH/USDT", "SOL/USDT", "AVAX/USDT", "XRP/USDT", "LINK/USDT", "ADA/USDT", "DOT/USDT", "DOGE/USDT", "NEAR/USDT", "WIF/USDT", "FET/USDT"
   ],
   "indicators": {
     "rsi_period": 14,
