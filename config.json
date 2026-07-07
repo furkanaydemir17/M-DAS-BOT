@@ -1,0 +1,19 @@
+{
+  "telegram_token": "8680358615:AAGeG4Fhh9Zj779d_xReV6Gf_g1ny-S6-Vo",
+  "telegram_chat_id": "8651662629",
+  "scan_interval_minutes": 10,
+  "bist_tickers": [],
+  "crypto_tickers": [
+    "BTC/USDT", "ETH/USDT", "SOL/USDT", "AVAX/USDT", "XRP/USDT", "LINK/USDT", "ADA/USDT", "DOT/USDT", "DOGE/USDT", "NEAR/USDT", "SUI/USDT", "PEPE/USDT", "WIF/USDT", "FET/USDT"
+  ],
+  "indicators": {
+    "rsi_period": 14,
+    "rsi_oversold": 30,
+    "rsi_overbought": 70,
+    "macd_fast": 12,
+    "macd_slow": 26,
+    "macd_signal": 9,
+    "supertrend_period": 10,
+    "supertrend_multiplier": 3.0
+  }
+}

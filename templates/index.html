@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Midas & Kripto Sinyal Asistanı</title>
+    <!-- Google Fonts: Outfit -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Main Style -->
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="glow-bg"></div>
+    
+    <div class="container">
+        <!-- Navigation / Header -->
+        <header>
+            <div class="logo">
+                <i class="fa-solid fa-chart-line-up"></i>
+                <div>
+                    <h1>Midas & Kripto</h1>
+                    <span>Sinyal & Takip Asistanı</span>
+                </div>
+            </div>
+            <div class="system-status">
+                <span class="status-dot online"></span>
+                <span id="status-text">Sistem Aktif</span>
+                <button id="manual-scan-btn" onclick="triggerScan()">
+                    <i class="fa-solid fa-rotate"></i> Şimdi Tara
+                </button>
+            </div>
+        </header>
+
+        <!-- Tunnel Remote Access Banner -->
+        <div class="tunnel-banner" id="tunnel-banner">
+            <div class="tunnel-info">
+                <i class="fa-solid fa-globe"></i>
+                <div class="tunnel-text">
+                    <span class="tunnel-label">Uzaktan Erişim (Telefondan)</span>
+                    <span class="tunnel-url" id="tunnel-url">Bağlantı kuruluyor...</span>
+                </div>
+            </div>
+            <div class="tunnel-actions">
+                <button class="btn-copy" id="tunnel-copy-btn" onclick="copyTunnelUrl()" style="display:none">
+                    <i class="fa-solid fa-copy"></i> Kopyala
+                </button>
+                <button class="btn-tunnel-toggle" id="tunnel-toggle-btn" onclick="toggleTunnel()">
+                    <i class="fa-solid fa-power-off"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Main Dashboard Layout -->
+        <div class="dashboard-grid">
+            
+            <!-- Left Side: Active Signals -->
+            <section class="signals-section">
+                <div class="section-header">
+                    <h2><i class="fa-solid fa-bolt text-gold"></i> Aktif Sinyaller</h2>
+                    <span class="badge" id="active-signals-count">0 Sinyal</span>
+                </div>
+                <div id="signals-container" class="signals-list">
+                    <!-- Dynamic Signals will be loaded here -->
+                    <div class="no-signals">
+                        <i class="fa-solid fa-circle-info"></i>
+                        <p>Şu anda aktif bir LONG/SHORT sinyali bulunmamaktadır. Piyasalar taranıyor...</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Right Side: Watchlist and Logs -->
+            <div class="right-column">
+                
+                <!-- Quick Stats / Info -->
+                <div class="card stats-card">
+                    <div class="stat-item">
+                        <span class="stat-label">Son Tarama Zamanı</span>
+                        <span class="stat-value" id="last-scan-time">Yükleniyor...</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Takip Edilen Varlık</span>
+                        <span class="stat-value" id="tickers-count">0 Varlık</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Tarama Aralığı</span>
+                        <span class="stat-value" id="scan-interval-display">15 dk</span>
+                    </div>
+                </div>
+
+                <!-- Tabs Navigation -->
+                <div class="tabs">
+                    <button class="tab-btn active" onclick="switchTab('watchlist-tab', event)">İzleme Listesi</button>
+                    <button class="tab-btn" onclick="switchTab('telegram-tab', event)">Telegram Ayarları</button>
+                    <button class="tab-btn" onclick="switchTab('strategy-tab', event)">İndikatör Ayarları</button>
+                </div>
+
+                <!-- Tab Content: Watchlist -->
+                <div id="watchlist-tab" class="tab-content active">
+                    <div class="card">
+                        <h3><i class="fa-solid fa-list-check"></i> Takip Listesi Yönetimi</h3>
+                        
+                        <div class="input-group-row">
+                            <div class="input-wrapper">
+                                <label for="new-bist-ticker">BIST Hisse Ekle</label>
+                                <div class="add-input">
+                                    <input type="text" id="new-bist-ticker" placeholder="Örn: THYAO.IS">
+                                    <button class="btn-add" onclick="addTicker('bist')"><i class="fa-solid fa-plus"></i></button>
+                                </div>
+                                <small>Sonuna .IS eklemeyi unutmayın (Örn: EREGL.IS)</small>
+                            </div>
+                        </div>
+                        <div class="ticker-tags" id="bist-tags-container"></div>
+
+                        <hr class="divider">
+
+                        <div class="input-group-row">
+                            <div class="input-wrapper">
+                                <label for="new-crypto-ticker">Kripto Çifti Ekle</label>
+                                <div class="add-input">
+                                    <input type="text" id="new-crypto-ticker" placeholder="Örn: BTC/USDT">
+                                    <button class="btn-add" onclick="addTicker('crypto')"><i class="fa-solid fa-plus"></i></button>
+                                </div>
+                                <small>Format: SEMBOL/USDT (Örn: ETH/USDT)</small>
+                            </div>
+                        </div>
+                        <div class="ticker-tags" id="crypto-tags-container"></div>
+                        
+                        <hr class="divider">
+
+                        <div class="input-group-row">
+                            <div class="input-wrapper">
+                                <label for="scan-interval">Tarama Aralığı (Dakika)</label>
+                                <div class="add-input">
+                                    <input type="number" id="scan-interval" min="1" max="60" value="15">
+                                </div>
+                                <small>Bot bu aralıkla piyasaları otomatik tarayacaktır.</small>
+                            </div>
+                        </div>
+
+                        <button class="btn-save btn-primary" onclick="saveTickersAndConfig()"><i class="fa-solid fa-floppy-disk"></i> Listeyi Kaydet</button>
+                    </div>
+                </div>
+
+                <!-- Tab Content: Telegram Settings -->
+                <div id="telegram-tab" class="tab-content">
+                    <div class="card">
+                        <h3><i class="fa-brands fa-telegram"></i> Telegram Bildirim Ayarları</h3>
+                        
+                        <div class="form-group">
+                            <label for="telegram-token">Bot Token API</label>
+                            <input type="password" id="telegram-token" placeholder="BotFather'dan aldığınız HTTP API Token">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="telegram-chat-id">Chat / Kanal ID</label>
+                            <input type="text" id="telegram-chat-id" placeholder="Mesajların gönderileceği Chat ID veya @kanaladi">
+                        </div>
+
+                        <div class="btn-row">
+                            <button class="btn-secondary" onclick="testTelegram()"><i class="fa-solid fa-paper-plane"></i> Test Et</button>
+                            <button class="btn-primary" onclick="saveTelegramSettings()"><i class="fa-solid fa-floppy-disk"></i> Kaydet</button>
+                        </div>
+                        <div id="telegram-test-result" class="test-feedback"></div>
+
+                        <div class="telegram-instructions" style="margin-top: 1.5rem; padding: 1rem; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-color); border-radius: 8px; font-size: 0.85rem; line-height: 1.5;">
+                            <h4 style="color: var(--secondary-color); margin-bottom: 0.5rem; font-size: 0.9rem;"><i class="fa-solid fa-circle-info"></i> Telegram Kurulum Adımları</h4>
+                            <ol style="margin-left: 1.2rem; display: flex; flex-direction: column; gap: 0.4rem; color: var(--text-muted);">
+                                <li>Telegram'da arama kısmına <b>@BotFather</b> yazın ve mesaj ekranını açıp <code>/start</code> tuşlayın.</li>
+                                <li><code>/newbot</code> komutunu gönderin. Botunuza bir isim (örn. <i>MidasSinyal</i>) ve <u>bot</u> ile biten bir kullanıcı adı (örn. <i>midas_sinyal_bot</i>) verin.</li>
+                                <li>BotFather'ın size verdiği uzun <b>HTTP API Token</b> değerini yukarıdaki <i>Bot Token API</i> kutusuna yapıştırın.</li>
+                                <li>Ardından kendi sohbet ID'nizi öğrenmek için Telegram'da <b>@userinfobot</b> araması yapıp <code>/start</code> yazın. Size verdiği <b>Id</b> numarasını kopyalayıp yukarıdaki <i>Chat / Kanal ID</i> kutusuna yapıştırın.</li>
+                                <li>Telegram'da kendi oluşturduğunuz botun sohbet penceresini açıp <code>/start</code> yazarak botu aktif edin.</li>
+                                <li>Buradaki panelden <b>Test Et</b> butonuna basın. Telefondan bildirim geldiyse <b>Kaydet</b>'e basın.</li>
+                            </ol>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab Content: Strategy Settings -->
+                <div id="strategy-tab" class="tab-content">
+                    <div class="card">
+                        <h3><i class="fa-solid fa-sliders"></i> Teknik Gösterge Parametreleri</h3>
+                        
+                        <div class="strategy-grid">
+                            <div class="indicator-box">
+                                <h4>RSI Ayarları</h4>
+                                <div class="form-group-inline">
+                                    <label>Periyot:</label>
+                                    <input type="number" id="rsi-period" value="14">
+                                </div>
+                                <div class="form-group-inline">
+                                    <label>Aşırı Satım (Long):</label>
+                                    <input type="number" id="rsi-oversold" value="30">
+                                </div>
+                                <div class="form-group-inline">
+                                    <label>Aşırı Alım (Short):</label>
+                                    <input type="number" id="rsi-overbought" value="70">
+                                </div>
+                            </div>
+
+                            <div class="indicator-box">
+                                <h4>MACD Ayarları</h4>
+                                <div class="form-group-inline">
+                                    <label>Hızlı EMA:</label>
+                                    <input type="number" id="macd-fast" value="12">
+                                </div>
+                                <div class="form-group-inline">
+                                    <label>Yavaş EMA:</label>
+                                    <input type="number" id="macd-slow" value="26">
+                                </div>
+                                <div class="form-group-inline">
+                                    <label>Sinyal:</label>
+                                    <input type="number" id="macd-signal" value="9">
+                                </div>
+                            </div>
+
+                            <div class="indicator-box full-width">
+                                <h4>SuperTrend Ayarları</h4>
+                                <div class="form-group-inline-row">
+                                    <div class="form-group-inline">
+                                        <label>Periyot:</label>
+                                        <input type="number" id="st-period" value="10">
+                                    </div>
+                                    <div class="form-group-inline">
+                                        <label>Çarpan (Multiplier):</label>
+                                        <input type="number" id="st-multiplier" step="0.1" value="3.0">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <button class="btn-primary mt-2" onclick="saveIndicatorsConfig()"><i class="fa-solid fa-floppy-disk"></i> Parametreleri Kaydet</button>
+                    </div>
+                </div>
+
+                <!-- Scan History Logs -->
+                <section class="logs-section">
+                    <div class="section-header">
+                        <h3><i class="fa-solid fa-history"></i> Tarama Günlüğü</h3>
+                    </div>
+                    <div class="logs-container" id="logs-container">
+                        <div class="no-logs">Henüz tarama geçmişi bulunmuyor.</div>
+                    </div>
+                </section>
+
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Script File -->
+    <script>
+        let currentConfig = {};
+        let activeBistTickers = [];
+        let activeCryptoTickers = [];
+
+        // Tab Switching Logic
+        function switchTab(tabId, evt) {
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            document.getElementById(tabId).classList.add('active');
+            evt.currentTarget.classList.add('active');
+        }
+
+        // Fetch current configurations
+        async function fetchConfig() {
+            try {
+                const response = await fetch('/api/config');
+                const config = await response.json();
+                currentConfig = config;
+                
+                activeBistTickers = config.bist_tickers || [];
+                activeCryptoTickers = config.crypto_tickers || [];
+                
+                // Populate UI
+                renderTickerTags();
+                
+                document.getElementById('telegram-token').value = config.telegram_token || '';
+                document.getElementById('telegram-chat-id').value = config.telegram_chat_id || '';
+                
+                // Indicators
+                if (config.indicators) {
+                    document.getElementById('rsi-period').value = config.indicators.rsi_period || 14;
+                    document.getElementById('rsi-oversold').value = config.indicators.rsi_oversold || 30;
+                    document.getElementById('rsi-overbought').value = config.indicators.rsi_overbought || 70;
+                    document.getElementById('macd-fast').value = config.indicators.macd_fast || 12;
+                    document.getElementById('macd-slow').value = config.indicators.macd_slow || 26;
+                    document.getElementById('macd-signal').value = config.indicators.macd_signal || 9;
+                    document.getElementById('st-period').value = config.indicators.supertrend_period || 10;
+                    document.getElementById('st-multiplier').value = config.indicators.supertrend_multiplier || 3.0;
+                }
+                
+                document.getElementById('tickers-count').innerText = `${activeBistTickers.length + activeCryptoTickers.length} Varlık`;
+                document.getElementById('scan-interval').value = config.scan_interval_minutes || 15;
+                document.getElementById('scan-interval-display').innerText = `${config.scan_interval_minutes || 15} dk`;
+            } catch (err) {
+                console.error("Konfigürasyon yüklenirken hata oluştu:", err);
+            }
+        }
+
+        // Render Tag Badges for watchlists
+        function renderTickerTags() {
+            const bistContainer = document.getElementById('bist-tags-container');
+            const cryptoContainer = document.getElementById('crypto-tags-container');
+            
+            bistContainer.innerHTML = '';
+            cryptoContainer.innerHTML = '';
+            
+            activeBistTickers.forEach(ticker => {
+                bistContainer.innerHTML += `
+                    <span class="tag">
+                        ${ticker}
+                        <i class="fa-solid fa-xmark remove-btn" onclick="removeTicker('bist', '${ticker}')"></i>
+                    </span>
+                `;
+            });
+            
+            activeCryptoTickers.forEach(ticker => {
+                cryptoContainer.innerHTML += `
+                    <span class="tag tag-crypto">
+                        ${ticker}
+                        <i class="fa-solid fa-xmark remove-btn" onclick="removeTicker('crypto', '${ticker}')"></i>
+                    </span>
+                `;
+            });
+        }
+
+        function addTicker(type) {
+            if (type === 'bist') {
+                const input = document.getElementById('new-bist-ticker');
+                const val = input.value.trim().toUpperCase();
+                if (val && !activeBistTickers.includes(val)) {
+                    activeBistTickers.push(val);
+                    renderTickerTags();
+                    input.value = '';
+                }
+            } else {
+                const input = document.getElementById('new-crypto-ticker');
+                const val = input.value.trim().toUpperCase();
+                if (val && !activeCryptoTickers.includes(val)) {
+                    activeCryptoTickers.push(val);
+                    renderTickerTags();
+                    input.value = '';
+                }
+            }
+        }
+
+        function removeTicker(type, ticker) {
+            if (type === 'bist') {
+                activeBistTickers = activeBistTickers.filter(t => t !== ticker);
+            } else {
+                activeCryptoTickers = activeCryptoTickers.filter(t => t !== ticker);
+            }
+            renderTickerTags();
+        }
+
+        // Save Tickers config
+        async function saveTickersAndConfig() {
+            try {
+                const payload = {
+                    telegram_token: document.getElementById('telegram-token').value,
+                    telegram_chat_id: document.getElementById('telegram-chat-id').value,
+                    scan_interval_minutes: parseInt(document.getElementById('scan-interval').value) || 15,
+                    bist_tickers: activeBistTickers,
+                    crypto_tickers: activeCryptoTickers,
+                    rsi_period: parseInt(document.getElementById('rsi-period').value),
+                    rsi_oversold: parseInt(document.getElementById('rsi-oversold').value),
+                    rsi_overbought: parseInt(document.getElementById('rsi-overbought').value),
+                    macd_fast: parseInt(document.getElementById('macd-fast').value),
+                    macd_slow: parseInt(document.getElementById('macd-slow').value),
+                    macd_signal: parseInt(document.getElementById('macd-signal').value),
+                    supertrend_period: parseInt(document.getElementById('st-period').value),
+                    supertrend_multiplier: parseFloat(document.getElementById('st-multiplier').value)
+                };
+                
+                const response = await fetch('/api/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                const res = await response.json();
+                if (res.status === 'success') {
+                    alert('İzleme Listesi başarıyla kaydedildi!');
+                    fetchConfig();
+                }
+            } catch (err) {
+                alert('Kaydetme hatası: ' + err.message);
+            }
+        }
+
+        // Save Telegram Settings
+        async function saveTelegramSettings() {
+            await saveTickersAndConfig();
+        }
+
+        // Save Indicators Settings
+        async function saveIndicatorsConfig() {
+            await saveTickersAndConfig();
+        }
+
+        // Test Telegram Connection
+        async function testTelegram() {
+            const feedback = document.getElementById('telegram-test-result');
+            feedback.className = 'test-feedback loading';
+            feedback.innerText = 'Test mesajı gönderiliyor...';
+            
+            const token = document.getElementById('telegram-token').value;
+            const chat_id = document.getElementById('telegram-chat-id').value;
+            
+            if(!token || !chat_id) {
+                feedback.className = 'test-feedback error';
+                feedback.innerText = 'Lütfen token ve chat ID alanlarını doldurun.';
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/test_telegram', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token, chat_id })
+                });
+                const res = await response.json();
+                if (response.ok) {
+                    feedback.className = 'test-feedback success';
+                    feedback.innerText = res.message;
+                } else {
+                    feedback.className = 'test-feedback error';
+                    feedback.innerText = res.detail || 'Test başarısız oldu.';
+                }
+            } catch (err) {
+                feedback.className = 'test-feedback error';
+                feedback.innerText = 'Hata: ' + err.message;
+            }
+        }
+
+        // Trigger manual scan
+        async function triggerScan() {
+            const btn = document.getElementById('manual-scan-btn');
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Taranıyor...`;
+            
+            try {
+                const response = await fetch('/api/scan', { method: 'POST' });
+                const res = await response.json();
+                if (res.status === 'success') {
+                    // Poll status immediately to update
+                    setTimeout(updateStatus, 1500);
+                }
+            } catch(err) {
+                console.error("Tarama tetikleme hatası:", err);
+            } finally {
+                setTimeout(() => {
+                    btn.disabled = false;
+                    btn.innerHTML = `<i class="fa-solid fa-rotate"></i> Şimdi Tara`;
+                }, 3000);
+            }
+        }
+
+        // Poll system status and update signals / logs
+        async function updateStatus() {
+            try {
+                const response = await fetch('/api/status');
+                const data = await response.json();
+                
+                // Update stats
+                document.getElementById('last-scan-time').innerText = data.last_scan_time;
+                document.getElementById('active-signals-count').innerText = `${data.active_signals_count} Sinyal`;
+                
+                // Render signals
+                const signalsContainer = document.getElementById('signals-container');
+                signalsContainer.innerHTML = '';
+                
+                const activeSigs = data.active_signals;
+                const symbols = Object.keys(activeSigs);
+                
+                if (symbols.length === 0) {
+                    signalsContainer.innerHTML = `
+                        <div class="no-signals">
+                            <i class="fa-solid fa-circle-info"></i>
+                            <p>Şu anda aktif bir LONG/SHORT sinyali bulunmamaktadır. Piyasalar taranıyor...</p>
+                        </div>
+                    `;
+                } else {
+                    symbols.forEach(sym => {
+                        const sig = activeSigs[sym];
+                        const isLong = sig.signal_type === 'LONG';
+                        const signalClass = isLong ? 'signal-long' : 'signal-short';
+                        const badgeClass = isLong ? 'badge-long' : 'badge-short';
+                        const arrowIcon = isLong ? 'fa-arrow-trend-up' : 'fa-arrow-trend-down';
+                        
+                        const grade = sig.grade || 'B';
+                        let gradeBadgeClass = 'grade-b';
+                        let gradeLabel = 'ORTA (B)';
+                        if (grade === 'A++') {
+                            gradeBadgeClass = 'badge-gold';
+                            gradeLabel = '🔥 ULTRA (A++)';
+                        } else if (grade === 'A') {
+                            gradeBadgeClass = 'badge-purple';
+                            gradeLabel = '⭐ GÜÇLÜ (A)';
+                        }
+                        
+                        signalsContainer.innerHTML += `
+                            <div class="signal-card ${signalClass} grade-card-${grade.toLowerCase().replace('+', 'p')}">
+                                <div class="signal-card-header">
+                                    <span class="symbol-name">${sym}</span>
+                                    <div class="header-badges" style="display: flex; gap: 0.5rem;">
+                                        <span class="signal-badge ${gradeBadgeClass}">${gradeLabel}</span>
+                                        <span class="signal-badge ${badgeClass}">
+                                            <i class="fa-solid ${arrowIcon}"></i> ${sig.signal_type}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="signal-card-body">
+                                    <div class="signal-price-row">
+                                        <span class="price-label">Sinyal Fiyatı</span>
+                                        <span class="price-val">${sig.price.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 4})}</span>
+                                    </div>
+                                    <div class="signal-detail-text">
+                                        ${sig.details.replace(/\*/g, '').replace(/\n/g, '<br>')}
+                                    </div>
+                                </div>
+                                <div class="signal-card-footer">
+                                    <i class="fa-solid fa-clock"></i> Tespit: ${sig.time}
+                                </div>
+                            </div>
+                        `;
+                    });
+                }
+                
+                // Render Logs
+                const logsContainer = document.getElementById('logs-container');
+                logsContainer.innerHTML = '';
+                
+                if (data.history.length === 0) {
+                    logsContainer.innerHTML = `<div class="no-logs">Henüz tarama geçmişi bulunmuyor.</div>`;
+                } else {
+                    data.history.forEach(log => {
+                        const hasErrors = log.errors && log.errors.length > 0;
+                        const logClass = hasErrors ? 'log-item error' : 'log-item';
+                        const statusIcon = hasErrors ? 'fa-triangle-exclamation text-red' : 'fa-check-circle text-green';
+                        
+                        logsContainer.innerHTML += `
+                            <div class="${logClass}">
+                                <div class="log-meta">
+                                    <i class="fa-solid ${statusIcon}"></i>
+                                    <span class="log-time">${log.time}</span>
+                                    <span class="log-summary">${log.scanned_count} Varlık tarandı | ${log.new_signals} Yeni Sinyal</span>
+                                </div>
+                                ${hasErrors ? `<div class="log-errors">${log.errors.join('<br>')}</div>` : ''}
+                            </div>
+                        `;
+                    });
+                }
+                
+            } catch (err) {
+                console.error("Durum güncellenirken hata oluştu:", err);
+            }
+        }
+
+        // Initialize dashboard
+        window.onload = async () => {
+            await fetchConfig();
+            await updateStatus();
+            
+            // Poll for updates every 10 seconds
+            setInterval(updateStatus, 10000);
+        };
+
+        // Enter key support for ticker inputs
+        document.getElementById('new-bist-ticker').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') addTicker('bist');
+        });
+        document.getElementById('new-crypto-ticker').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') addTicker('crypto');
+        });
+
+        // ============================================
+        // Tunnel (Uzaktan Erişim) Yönetimi
+        // ============================================
+        let tunnelRunning = false;
+
+        async function updateTunnelStatus() {
+            try {
+                const response = await fetch('/api/tunnel/status');
+                const data = await response.json();
+                const banner = document.getElementById('tunnel-banner');
+                const urlEl = document.getElementById('tunnel-url');
+                const copyBtn = document.getElementById('tunnel-copy-btn');
+                const toggleBtn = document.getElementById('tunnel-toggle-btn');
+
+                if (data.status === 'running' && data.url) {
+                    tunnelRunning = true;
+                    banner.className = 'tunnel-banner tunnel-active';
+                    urlEl.innerHTML = `<a href="${data.url}" target="_blank">${data.url}</a>`;
+                    copyBtn.style.display = 'flex';
+                    toggleBtn.innerHTML = '<i class="fa-solid fa-power-off"></i>';
+                    toggleBtn.title = 'Tunnel Durdur';
+                } else if (data.status === 'starting') {
+                    tunnelRunning = false;
+                    banner.className = 'tunnel-banner tunnel-starting';
+                    urlEl.textContent = 'Bağlantı kuruluyor...';
+                    copyBtn.style.display = 'none';
+                    toggleBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+                } else if (data.status === 'error') {
+                    tunnelRunning = false;
+                    banner.className = 'tunnel-banner tunnel-error';
+                    urlEl.textContent = data.error || 'Tunnel hatası!';
+                    copyBtn.style.display = 'none';
+                    toggleBtn.innerHTML = '<i class="fa-solid fa-rotate"></i>';
+                    toggleBtn.title = 'Tekrar Dene';
+                } else {
+                    tunnelRunning = false;
+                    banner.className = 'tunnel-banner tunnel-stopped';
+                    urlEl.textContent = 'Tunnel kapalı';
+                    copyBtn.style.display = 'none';
+                    toggleBtn.innerHTML = '<i class="fa-solid fa-play"></i>';
+                    toggleBtn.title = 'Tunnel Başlat';
+                }
+
+                if (!data.available) {
+                    banner.className = 'tunnel-banner tunnel-error';
+                    urlEl.textContent = 'cloudflared.exe bulunamadı!';
+                }
+            } catch (err) {
+                console.error('Tunnel durumu alınamadı:', err);
+            }
+        }
+
+        async function toggleTunnel() {
+            const endpoint = tunnelRunning ? '/api/tunnel/stop' : '/api/tunnel/start';
+            try {
+                await fetch(endpoint, { method: 'POST' });
+                // Birkaç saniye sonra durumu güncelle (tunnel başlaması zaman alır)
+                setTimeout(updateTunnelStatus, 3000);
+                setTimeout(updateTunnelStatus, 6000);
+                setTimeout(updateTunnelStatus, 10000);
+            } catch (err) {
+                console.error('Tunnel toggle hatası:', err);
+            }
+            updateTunnelStatus();
+        }
+
+        function copyTunnelUrl() {
+            const urlEl = document.getElementById('tunnel-url');
+            const link = urlEl.querySelector('a');
+            const url = link ? link.href : urlEl.textContent;
+            navigator.clipboard.writeText(url).then(() => {
+                const copyBtn = document.getElementById('tunnel-copy-btn');
+                copyBtn.innerHTML = '<i class="fa-solid fa-check"></i> Kopyalandı!';
+                setTimeout(() => {
+                    copyBtn.innerHTML = '<i class="fa-solid fa-copy"></i> Kopyala';
+                }, 2000);
+            });
+        }
+
+        // Tunnel durumunu da periyodik olarak kontrol et
+        setInterval(updateTunnelStatus, 5000);
+        // İlk yüklemede tunnel durumunu kontrol et
+        setTimeout(updateTunnelStatus, 1000);
+    </script>
+</body>
+</html>
