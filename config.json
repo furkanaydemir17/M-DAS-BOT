@@ -5,7 +5,7 @@
   "total_capital": 1000.0,
   "bist_tickers": [],
   "crypto_tickers": [
-    "BTC/USDT", "ETH/USDT", "SOL/USDT", "AVAX/USDT", "XRP/USDT", "LINK/USDT", "ADA/USDT", "DOT/USDT", "DOGE/USDT", "NEAR/USDT", "WIF/USDT", "FET/USDT"
+    "BTC/USDT", "ETH/USDT", "SOL/USDT", "AVAX/USDT", "XRP/USDT", "LINK/USDT", "ADA/USDT", "DOT/USDT", "DOGE/USDT", "NEAR/USDT", "WIF/USDT", "FET/USDT", "LTC/USDT", "ARB/USDT", "OP/USDT", "SHIB/USDT", "ATOM/USDT", "ICP/USDT", "FIL/USDT"
   ],
   "indicators": {
     "rsi_period": 14,
