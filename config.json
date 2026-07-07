@@ -2,6 +2,7 @@
   "telegram_token": "8680358615:AAGeG4Fhh9Zj779d_xReV6Gf_g1ny-S6-Vo",
   "telegram_chat_id": "8651662629",
   "scan_interval_minutes": 10,
+  "total_capital": 1000.0,
   "bist_tickers": [],
   "crypto_tickers": [
     "BTC/USDT", "ETH/USDT", "SOL/USDT", "AVAX/USDT", "XRP/USDT", "LINK/USDT", "ADA/USDT", "DOT/USDT", "DOGE/USDT", "NEAR/USDT", "WIF/USDT", "FET/USDT"

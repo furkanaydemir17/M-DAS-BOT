@@ -141,6 +141,16 @@
                             </div>
                         </div>
 
+                        <div class="input-group-row">
+                            <div class="input-wrapper">
+                                <label for="total-capital">Kasa Bakiyesi (TL)</label>
+                                <div class="add-input">
+                                    <input type="number" id="total-capital" min="100" max="1000000" value="1000">
+                                </div>
+                                <small>Bot risk ve teminat hesaplamalarını bu bakiyeye göre yapacaktır.</small>
+                            </div>
+                        </div>
+
                         <button class="btn-save btn-primary" onclick="saveTickersAndConfig()"><i class="fa-solid fa-floppy-disk"></i> Listeyi Kaydet</button>
                     </div>
                 </div>
@@ -302,6 +312,7 @@
                 document.getElementById('tickers-count').innerText = `${activeBistTickers.length + activeCryptoTickers.length} Varlık`;
                 document.getElementById('scan-interval').value = config.scan_interval_minutes || 15;
                 document.getElementById('scan-interval-display').innerText = `${config.scan_interval_minutes || 15} dk`;
+                document.getElementById('total-capital').value = config.total_capital || 1000;
             } catch (err) {
                 console.error("Konfigürasyon yüklenirken hata oluştu:", err);
             }
@@ -370,6 +381,7 @@
                     telegram_token: document.getElementById('telegram-token').value,
                     telegram_chat_id: document.getElementById('telegram-chat-id').value,
                     scan_interval_minutes: parseInt(document.getElementById('scan-interval').value) || 15,
+                    total_capital: parseFloat(document.getElementById('total-capital').value) || 1000,
                     bist_tickers: activeBistTickers,
                     crypto_tickers: activeCryptoTickers,
                     rsi_period: parseInt(document.getElementById('rsi-period').value),

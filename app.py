@@ -81,6 +81,7 @@ class ConfigUpdateModel(BaseModel):
     telegram_token: str
     telegram_chat_id: str
     scan_interval_minutes: int
+    total_capital: float
     bist_tickers: list[str]
     crypto_tickers: list[str]
     rsi_period: int
@@ -110,6 +111,7 @@ def update_full_config(data: ConfigUpdateModel):
         "telegram_token": data.telegram_token,
         "telegram_chat_id": data.telegram_chat_id,
         "scan_interval_minutes": data.scan_interval_minutes,
+        "total_capital": data.total_capital,
         "bist_tickers": data.bist_tickers,
         "crypto_tickers": data.crypto_tickers,
         "indicators": {

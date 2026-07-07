@@ -222,7 +222,7 @@ def fetch_bist_data(symbol: str, timeframe: str = "1h") -> pd.DataFrame:
 # Analiz Motoru (Ultra Zeki Confluence ve MTF Algoritması)
 # -------------------------------------------------------------------
 
-def analyze_market_data(df: pd.DataFrame, config_inds: dict, htf_trend: str = None) -> tuple:
+def analyze_market_data(df: pd.DataFrame, config_inds: dict, htf_trend: str = None, total_capital: float = 1000.0) -> tuple:
     """
     Tarihsel veriyi analiz eder, sinyal ('LONG', 'SHORT' veya None), detay metni ve sinyal derecesini döndürür.
     
@@ -483,6 +483,35 @@ def analyze_market_data(df: pd.DataFrame, config_inds: dict, htf_trend: str = No
         sl_pct = 0
 
     # ---------------------------------------------------------------
+    # Önerilen Kasa Yönetimi (Dinamik Bakiye ve 10x Kaldıraç için)
+    # ---------------------------------------------------------------
+    if tp_price and sl_price and signal_type:
+        sl_fraction = potential_loss / close
+        leverage_val = 10.0
+        
+        # Risk seviyelerine göre kaybedilecek maksimum tutarlar (Bakiye yüzdeleri)
+        # Düşük Risk: Kasanın %3'ü kayıp
+        # Orta Risk: Kasanın %5'i kayıp
+        # Yüksek Risk: Kasanın %10'u kayıp
+        loss_low = total_capital * 0.03
+        loss_medium = total_capital * 0.05
+        loss_high = total_capital * 0.10
+        
+        margin_low = min(loss_low / (leverage_val * sl_fraction), total_capital)
+        margin_medium = min(loss_medium / (leverage_val * sl_fraction), total_capital)
+        margin_high = min(loss_high / (leverage_val * sl_fraction), total_capital)
+        
+        risk_management_text = (
+            f"💰 ÖNERİLEN GİRİŞ MİKTARLARI ({total_capital:,.0f} TL Kasa için - 10x):\n"
+            f"  🟢 Düşük Risk (Kaybın en fazla {loss_low:.1f} TL olur): {margin_low:.0f} TL Teminat\n"
+            f"  🟡 Orta Risk (Kaybın en fazla {loss_medium:.0f} TL olur): {margin_medium:.0f} TL Teminat\n"
+            f"  🔴 Yüksek Risk (Kaybın en fazla {loss_high:.0f} TL olur): {margin_high:.0f} TL Teminat\n"
+            f"  (Not: Kasan değiştikçe panelden bakiyeni güncelleyebilirsin)"
+        )
+    else:
+        risk_management_text = ""
+
+    # ---------------------------------------------------------------
     # Detay Raporu (Telegram ve Dashboard için)
     # ---------------------------------------------------------------
     trend_text = "Boğa/Yükseliş" if is_above_ema200 else "Ayı/Düşüş"
@@ -494,24 +523,32 @@ def analyze_market_data(df: pd.DataFrame, config_inds: dict, htf_trend: str = No
     tp_fmt = f"{tp_price:,.4f}" if tp_price and tp_price < 10 else f"{tp_price:,.2f}" if tp_price else "—"
     sl_fmt = f"{sl_price:,.4f}" if sl_price and sl_price < 10 else f"{sl_price:,.2f}" if sl_price else "—"
 
-    details = (
-        f"💵 Anlık Fiyat: {price_fmt}\n"
-        f"🎯 Hedef Fiyat (TP): {tp_fmt} (+%{tp_pct})\n"
-        f"🛑 Zarar Durdur (SL): {sl_fmt} (-%{sl_pct})\n"
-        f"⚖️ Risk/Ödül Oranı: 1:{rr_ratio}\n"
-        f"📊 İndikatör Uyumu: %{confluence_pct}/100\n"
-        f"---\n"
-        f"📈 EMA Trendi: {trend_text}\n"
-        f"🔵 RSI: {rsi:.1f} ({rsi_text})\n"
-        f"⚡ SuperTrend: {st_text}\n"
-        f"📉 MACD Gücü: {'Güçlü' if macd_is_strong else 'Zayıf'}\n"
-        f"💧 Volume: {'Patlama 🔥' if is_volume_spike else 'Normal'}\n"
-        f"🔀 OBV: {'Pozitif Akış ▲' if obv > obv_ema else 'Negatif Akış ▼'}\n"
-        f"📏 Bollinger: {sq_text}\n"
-        f"🌐 MTF Trend: {htf_trend if htf_trend else 'Bilinmiyor'}\n"
-        f"---\n"
+    details_parts = [
+        f"💵 Anlık Fiyat: {price_fmt}",
+        f"🎯 Hedef Fiyat (TP): {tp_fmt} (+%{tp_pct})",
+        f"🛑 Zarar Durdur (SL): {sl_fmt} (-%{sl_pct})",
+        f"⚖️ Risk/Ödül Oranı: 1:{rr_ratio}",
+        f"📊 İndikatör Uyumu: %{confluence_pct}/100",
+        f"---"
+    ]
+    if risk_management_text:
+        details_parts.append(risk_management_text)
+        details_parts.append("---")
+        
+    details_parts.extend([
+        f"📈 EMA Trendi: {trend_text}",
+        f"🔵 RSI: {rsi:.1f} ({rsi_text})",
+        f"⚡ SuperTrend: {st_text}",
+        f"📉 MACD Gücü: {'Güçlü' if macd_is_strong else 'Zayıf'}",
+        f"💧 Volume: {'Patlama 🔥' if is_volume_spike else 'Normal'}",
+        f"🔀 OBV: {'Pozitif Akış ▲' if obv > obv_ema else 'Negatif Akış ▼'}",
+        f"📏 Bollinger: {sq_text}",
+        f"🌐 MTF Trend: {htf_trend if htf_trend else 'Bilinmiyor'}",
+        f"---",
         f"✅ Onay Gerekçeleri:\n" + "\n".join(f"• {r.split(' (+')[0]}" for r in reasons_list)
-    )
+    ])
+
+    details = "\n".join(details_parts)
 
     return signal_type, details, grade, tp_price, sl_price, confluence_pct
 
@@ -526,6 +563,7 @@ def run_scan(timeframe: str = "1h") -> dict:
     bist_tickers = config.get("bist_tickers", [])
     crypto_tickers = config.get("crypto_tickers", [])
     indicators = config.get("indicators", {})
+    total_capital = float(config.get("total_capital", 1000.0))
 
     global active_signals
     new_signals_found = 0
@@ -560,7 +598,7 @@ def run_scan(timeframe: str = "1h") -> dict:
                     logger.warning(f"HTF ({htf}) trendi alinamadi: {htf_err}. Yalnizca LTF taranacak.")
 
             # 3. Analiz yap
-            signal, details, grade, tp_price, sl_price, confluence_pct = analyze_market_data(df_ltf, indicators, htf_trend)
+            signal, details, grade, tp_price, sl_price, confluence_pct = analyze_market_data(df_ltf, indicators, htf_trend, total_capital)
             current_price = float(df_ltf.iloc[-1]['Close'])
             scanned_items.append({
                 "symbol": symbol,
@@ -626,7 +664,7 @@ def run_scan(timeframe: str = "1h") -> dict:
                     logger.warning(f"HTF ({htf}) trendi alinamadi: {htf_err}. Yalnizca LTF taranacak.")
 
             # 3. Analiz yap
-            signal, details, grade, tp_price, sl_price, confluence_pct = analyze_market_data(df_ltf, indicators, htf_trend)
+            signal, details, grade, tp_price, sl_price, confluence_pct = analyze_market_data(df_ltf, indicators, htf_trend, total_capital)
             current_price = float(df_ltf.iloc[-1]['Close'])
             scanned_items.append({
                 "symbol": symbol,
